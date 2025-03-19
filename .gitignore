@@ -1,6 +1,6 @@
 # Ignorar binarios y archivos de compilación
-bin/
-build/
+bin/*
+!bin/.gitkeep
 *.o
 *.out
 *.exe
