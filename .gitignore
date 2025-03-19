@@ -1,0 +1,20 @@
+# Ignorar binarios y archivos de compilación
+bin/
+build/
+*.o
+*.out
+*.exe
+*.log
+
+# Ignorar archivos temporales de editor
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# Ignorar archivos de caché de sistema y ocultos
+.DS_Store
+Thumbs.db
+
+# Ignorar binarios del proyecto
+ChompChamps*
