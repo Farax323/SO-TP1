@@ -4,8 +4,6 @@
 #include <semaphore.h>
 #include <stdbool.h>
 
-
-
 #define MAX_PLAYERS 9
 #define BOARD_WIDTH 10
 #define BOARD_HEIGHT 10
@@ -29,6 +27,7 @@ typedef struct{
     jugador jugadores[MAX_PLAYERS]; //lista de jugadores
     bool juego_terminado; //indica si el juego termino
     int *tablero;  // Puntero al tablero de juego
+    
 } EstadoJuego;
 
 //Estructura para la sincronizacion de procesos
@@ -39,6 +38,6 @@ typedef struct{
     sem_t mutex_tablero; // Mutex para proteger el acceso al tablero
     sem_t mutex_lectores; // Mutex para la siguiente variable
     unsigned int lectores; // Cantidad de jugadores leyendo el estado
-}Sincronizacion;
+} Sincronizacion;
 
-#endif
+#endif // MASTER_H
