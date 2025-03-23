@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
     size_t tam_total = sizeof(EstadoJuego) + cant_celdas * sizeof(int);
 
     // Crear SHM que contenga EstadoJuego + tablero
-    void *mem_base = createSHM("/estado", tam_total);
+    void *mem_base = createSHM(SHM_ESTADO, tam_total);
     EstadoJuego *estado = (EstadoJuego *)mem_base;
 
     // Inicializar estado
@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Crear SHM de sincronización
-    Sincronizacion *sync = (Sincronizacion *)createSHM("/sync", sizeof(Sincronizacion));
+    Sincronizacion *sync = (Sincronizacion *)createSHM(SHM_SYNC, sizeof(Sincronizacion));
     sem_init(&sync->sem_vista, 1, 0);
     sem_init(&sync->sem_master, 1, 1);
     sem_init(&sync->mutex_estado, 1, 1);

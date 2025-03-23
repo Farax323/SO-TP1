@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "master.h": "c",
-        "semaphore.h": "c"
+        "semaphore.h": "c",
+        "fcntl.h": "c"
     }
 }
