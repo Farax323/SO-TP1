@@ -2,6 +2,8 @@
     "files.associations": {
         "master.h": "c",
         "semaphore.h": "c",
-        "fcntl.h": "c"
+        "fcntl.h": "c",
+        "getopt_core.h": "c",
+        "stdio.h": "c"
     }
 }

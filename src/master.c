@@ -36,16 +36,31 @@ void *createSHM(char *name, size_t size) {
 int main(int argc, char *argv[]) {
     int width = 10;
     int height = 10;
+    char *player_paths[9];
+    int player_count = 0;
 
     int opt;
-    while ((opt = getopt(argc, argv, "w:h:")) != -1) {
+    while ((opt = getopt(argc, argv, "w:h:p:")) != -1) {
         switch (opt) {
             case 'w': width = atoi(optarg); break;
             case 'h': height = atoi(optarg); break;
+            case 'p':
+                if (player_count < 9) {
+                    player_paths[player_count++] = optarg;
+                } else {
+                    fprintf(stderr, "Máximo 9 jugadores permitidos.\n");
+                    exit(EXIT_FAILURE);
+                }
+                break;
             default:
-                fprintf(stderr, "Uso: %s [-w width] [-h height]\n", argv[0]);
+                fprintf(stderr, "Uso: %s [-w width] [-h height] [-p player1 player2 ...]\n", argv[0]);
                 exit(EXIT_FAILURE);
         }
+    }
+
+    if (player_count < 1) {
+        fprintf(stderr, "Debe especificar al menos un jugador.\n");
+        exit(EXIT_FAILURE);
     }
 
     size_t cant_celdas = width * height;
@@ -65,17 +80,17 @@ int main(int argc, char *argv[]) {
     estado->tablero = (int *)(mem_base + sizeof(EstadoJuego));
 
     // Inicializar el tablero
-    for (int i = 0; i < cant_celdas; i++) {
+    for (size_t i = 0; i < cant_celdas; i++) {
         estado->tablero[i] = (rand() % 9) + 1;
     }
 
-    printf("Tablero generado:\n");
-    for (int y = 0; y < estado->height; y++) {
-        for (int x = 0; x < estado->width; x++) {
-            printf("%d ", estado->tablero[y * estado->width + x]);
-        }
-        printf("\n");
-    }
+    // printf("[MASTER] Tablero generado:\n");
+    // for (int y = 0; y < estado->height; y++) {
+    //     for (int x = 0; x < estado->width; x++) {
+    //         printf("%d ", estado->tablero[y * estado->width + x]);
+    //     }
+    //     printf("\n");
+    // }
 
     // Crear SHM de sincronización
     Sincronizacion *sync = (Sincronizacion *)createSHM(SHM_SYNC, sizeof(Sincronizacion));
@@ -87,6 +102,23 @@ int main(int argc, char *argv[]) {
     sync->lectores = 0;
 
     printf("Memoria compartida y semáforos inicializados correctamente.\n");
+
+    // Crear procesos de los jugadores
+    for (int i = 0; i < player_count; i++) {
+        pid_t pid = fork();
+        if (pid == 0) {
+            // Proceso hijo
+            char width_str[10], height_str[10];
+            sprintf(width_str, "%d", width);
+            sprintf(height_str, "%d", height);
+            execl(player_paths[i], player_paths[i], width_str, height_str, NULL);
+            perror("Error al ejecutar el jugador");
+            exit(EXIT_FAILURE);
+        } else if (pid < 0) {
+            perror("Error al crear proceso del jugador");
+            exit(EXIT_FAILURE);
+        }
+    }
 
     return 0;
 }
