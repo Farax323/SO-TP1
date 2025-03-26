@@ -1,10 +1,11 @@
+#include "../include/master.h"
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
 #include <sys/mman.h>
-#include "../include/master.h"
-
-#define SHM_ESTADO "/estado"
+#include <time.h>
+#include <unistd.h>
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
@@ -14,34 +15,33 @@ int main(int argc, char *argv[]) {
 
     int width = atoi(argv[1]);
     int height = atoi(argv[2]);
+    fprintf(stderr, "[PLAYER] width: %d, height: %d\n", width, height);
 
-    int shm_fd = shm_open(SHM_ESTADO, O_RDWR, 0666);
+    srand(getpid() ^ time(NULL));
+
+    // Open shared memory with more explicit error handling
+    int shm_fd = shm_open("/game_state", O_RDONLY, 0666);
     if (shm_fd == -1) {
-        perror("jugador: Error al abrir /estado");
+        perror("Jugador: Error al abrir memoria compartida");
         exit(EXIT_FAILURE);
     }
 
     size_t tam_total = sizeof(EstadoJuego) + width * height * sizeof(int);
 
     // Mapear memoria completa
-    void *mem_base = mmap(NULL, tam_total, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    void *mem_base = mmap(NULL, tam_total, PROT_READ, MAP_SHARED, shm_fd, 0);
     if (mem_base == MAP_FAILED) {
         perror("Jugador: Error al mapear memoria completa");
         exit(EXIT_FAILURE);
     }
+
     EstadoJuego *estado = (EstadoJuego *)mem_base;
+    int *tablero = (int *)((char *)estado + sizeof(EstadoJuego));
 
-    // Reconstruir puntero al tablero
-    estado->tablero = (int *)((char *)mem_base + sizeof(EstadoJuego));
-    
-    printf("\n[PLAYER] Tablero generado:\n");
-    for (int y = 0; y < estado->height; y++) {
-        for (int x = 0; x < estado->width; x++) {
-            printf("%d ", estado->tablero[y * estado->width + x]);
-        }
-        printf("\n");
+    for (int i = 0; i < 1; i++) {
+        unsigned char direccion = 2;//rand() % 8;
+        write(STDOUT_FILENO, &direccion, sizeof(direccion));
+        sleep(2);
     }
-
-
     return 0;
 }

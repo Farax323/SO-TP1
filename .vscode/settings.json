@@ -4,6 +4,9 @@
         "semaphore.h": "c",
         "fcntl.h": "c",
         "getopt_core.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "mman.h": "c",
+        "stdlib.h": "c",
+        "time.h": "c"
     }
 }
