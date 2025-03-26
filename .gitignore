@@ -11,6 +11,7 @@ bin/*
 *.swo
 *.bak
 *.tmp
+.bash_history
 
 # Ignorar archivos de caché de sistema y ocultos
 .DS_Store
