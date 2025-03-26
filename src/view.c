@@ -13,46 +13,40 @@ void imprimir_tablero(EstadoJuego *estado, int *tablero) {
     const char *colores[] = {
         "\033[1;31m", "\033[1;32m", "\033[1;33m",
         "\033[1;34m", "\033[1;35m", "\033[1;36m",
-        "\033[1;91m", "\033[1;92m", "\033[1;94m"
-    };
+        "\033[1;91m", "\033[1;92m", "\033[1;94m"};
     const char *reset_color = "\033[0m";
 
     fprintf(stderr, "\n--- TABLERO (%dx%d) ---\n", estado->width, estado->height);
-
+    // fprintf(stderr, " %d\n ", estado->tablero[0]);
     for (int y = 0; y < estado->height; y++) {
         for (int x = 0; x < estado->width; x++) {
-            int val = tablero[y * estado->width + x];
+            int val = estado->tablero[y * estado->width + x];
 
-            
-            // if (val >= 1 && val <= 9) {
+            if (val >= 1 && val <= 9) {
                 // Celda libre con recompensa
                 fprintf(stderr, " %d ", val);
-            // }
-            // } else if (val <= 0) {
-            //     int id = (val == 0) ? 0 : -val;
+            } else if (val <= 0) {
+                int id = (val == 0) ? 0 : -val;
 
-            //     if (id >= 0 && id < estado->cantidad_jugadores) {
-            //         const char *color = colores[id % 9];
-            //         jugador *j = &estado->jugadores[id];
+                if (id >= 0 && id < estado->cantidad_jugadores) {
+                    const char *color = colores[id % 9];
+                    jugador *j = &estado->jugadores[id];
 
-            //         if (j->x == x && j->y == y) {
-            //             fprintf(stderr, "%s@%d%s ", color, id, reset_color); // Cabeza
-            //         } else {
-            //             fprintf(stderr, "%sP%d%s ", color, id, reset_color); // Cuerpo
-            //         }
-            //     } else {
-            //         fprintf(stderr, " ? ");
-            //     }
-            // } else {
-            //     fprintf(stderr, " ? ");
-            // }
+                    if (j->x == x && j->y == y) {
+                        fprintf(stderr, "%s@%d%s ", color, id, reset_color); // Cabeza
+                    } else {
+                        fprintf(stderr, "%sP%d%s ", color, id, reset_color); // Cuerpo
+                    }
+                } else {
+                    fprintf(stderr, " ? ");
+                }
+            } else {
+                fprintf(stderr, " ? ");
+            }
         }
         fprintf(stderr, "\n");
     }
 }
-
-
-
 
 void imprimir_jugadores(EstadoJuego *estado) {
 

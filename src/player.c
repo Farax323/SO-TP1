@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
 
     int width = atoi(argv[1]);
     int height = atoi(argv[2]);
-    fprintf(stderr, "[PLAYER] width: %d, height: %d\n", width, height);
+    // fprintf(stderr, "[PLAYER] width: %d, height: %d\n", width, height);
 
     srand(getpid() ^ time(NULL));
 
@@ -35,11 +35,11 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    EstadoJuego *estado = (EstadoJuego *)mem_base;
-    int *tablero = (int *)((char *)estado + sizeof(EstadoJuego));
+    // EstadoJuego *estado = (EstadoJuego *)mem_base;
+    // int *tablero = (int *)((char *)estado + sizeof(EstadoJuego));
 
-    for (int i = 0; i < 1; i++) {
-        unsigned char direccion = 2;//rand() % 8;
+    for (int i = 0; i < 100; i++) {
+        unsigned char direccion = rand() % 8;
         write(STDOUT_FILENO, &direccion, sizeof(direccion));
         sleep(2);
     }

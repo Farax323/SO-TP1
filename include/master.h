@@ -26,7 +26,7 @@ typedef struct {
     unsigned int cantidad_jugadores; // cantidad total de jugadores
     jugador jugadores[MAX_PLAYERS]; // lista de jugadores
     bool juego_terminado; // indica si el juego termino
-    int *tablero; // Puntero al tablero de juego
+    int tablero[]; // Puntero al tablero de juego
 
 } EstadoJuego;
 

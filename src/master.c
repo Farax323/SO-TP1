@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
     estado->juego_terminado = false;
 
     // Puntero al tablero (parte final del bloque)
-    estado->tablero = (int *)(mem_base + sizeof(EstadoJuego));
+    // estado->tablero = (int *)(mem_base + sizeof(EstadoJuego));
 
     // Inicializar el tablero
     for (size_t i = 0; i < cant_celdas; i++) {
