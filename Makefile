@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 -pthread
-LDFLAGS = -lrt
+LDFLAGS = -lrt -lm
 SRC = src/master.c src/player.c src/view.c
 BIN = bin/master bin/player bin/view
 
