@@ -7,18 +7,23 @@
 #include <time.h>
 #include <unistd.h>
 
-int dx[] = { 0, 1, 1, 1, 0, -1, -1, -1 };
-int dy[] = {-1, -1, 0, 1, 1,  1,  0, -1 };
+int dx[] = {0, 1, 1, 1, 0, -1, -1, -1};
+int dy[] = {-1, -1, 0, 1, 1, 1, 0, -1};
 
 int direccion_hacia(int x0, int y0, int x1, int y1) {
     int dx_ = x1 - x0;
     int dy_ = y1 - y0;
-    if (dx_ > 0) dx_ = 1;
-    else if (dx_ < 0) dx_ = -1;
-    if (dy_ > 0) dy_ = 1;
-    else if (dy_ < 0) dy_ = -1;
+    if (dx_ > 0)
+        dx_ = 1;
+    else if (dx_ < 0)
+        dx_ = -1;
+    if (dy_ > 0)
+        dy_ = 1;
+    else if (dy_ < 0)
+        dy_ = -1;
     for (int dir = 0; dir < 8; dir++) {
-        if (dx[dir] == dx_ && dy[dir] == dy_) return dir;
+        if (dx[dir] == dx_ && dy[dir] == dy_)
+            return dir;
     }
     return -1;
 }
@@ -32,9 +37,11 @@ int distancia(int x0, int y0, int x1, int y1) {
 int jugadores_cerca(int x, int y, EstadoJuego *estado, int mi_id) {
     int count = 0;
     for (unsigned int i = 0; i < estado->cantidad_jugadores; i++) {
-        if ((int)i == mi_id) continue;
+        if ((int)i == mi_id)
+            continue;
         jugador *j = &estado->jugadores[i];
-        if (abs(j->x - x) <= 1 && abs(j->y - y) <= 1) count++;
+        if (abs(j->x - x) <= 1 && abs(j->y - y) <= 1)
+            count++;
     }
     return count;
 }
@@ -88,10 +95,12 @@ int main(int argc, char *argv[]) {
         for (int y = 0; y < estado->height; y++) {
             for (int x = 0; x < estado->width; x++) {
                 int val = tablero[y * estado->width + x];
-                if (val <= 0) continue;
+                if (val <= 0)
+                    continue;
 
                 int dist = distancia(yo->x, yo->y, x, y);
-                if (dist == 0 || dist > 1) continue; // solo considerar celdas adyacentes
+                if (dist == 0 || dist > 1)
+                    continue; // solo considerar celdas adyacentes
 
                 int rivales = jugadores_cerca(x, y, estado, mi_id);
                 float score = val / (float)(dist + 1 + rivales);

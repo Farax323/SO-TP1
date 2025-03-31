@@ -3,29 +3,29 @@
 #include <semaphore.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
-#include <unistd.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <time.h>
+#include <unistd.h>
 
 #define CLEAR_SCREEN "\033[2J\033[H"
 #define COLOR_RESET "\033[0m"
-#define COLOR_REWARD_LOW "\033[38;5;152m"    // Azul pastel
+#define COLOR_REWARD_LOW "\033[38;5;152m" // Azul pastel
 #define COLOR_REWARD_MEDIUM "\033[38;5;222m" // Amarillo pastel
-#define COLOR_REWARD_HIGH "\033[38;5;210m"   // Rojo/coral pastel
+#define COLOR_REWARD_HIGH "\033[38;5;210m" // Rojo/coral pastel
 #define COLOR_BLOCKED "\033[1;90m"
 
 void imprimir_tablero(EstadoJuego *estado, int *tablero) {
     const char *colores[] = {
         "\033[38;5;160m", // rojo
-        "\033[38;5;46m",  // verde
+        "\033[38;5;46m", // verde
         "\033[38;5;226m", // amarillo
-        "\033[38;5;39m",  // azul
+        "\033[38;5;39m", // azul
         "\033[38;5;201m", // magenta
-        "\033[38;5;51m",  // cian
+        "\033[38;5;51m", // cian
         "\033[38;5;208m", // naranja
         "\033[38;5;129m", // violeta
-        "\033[38;5;27m"   // celeste
+        "\033[38;5;27m" // celeste
     };
     size_t cantidad_colores = sizeof(colores) / sizeof(colores[0]);
 
@@ -45,7 +45,8 @@ void imprimir_tablero(EstadoJuego *estado, int *tablero) {
             int val = estado->tablero[y * estado->width + x];
 
             if (val >= 1 && val <= 9) {
-                const char *color = val <= 3 ? COLOR_REWARD_LOW : val <= 6 ? COLOR_REWARD_MEDIUM : COLOR_REWARD_HIGH;
+                const char *color = val <= 3 ? COLOR_REWARD_LOW : val <= 6 ? COLOR_REWARD_MEDIUM
+                                                                           : COLOR_REWARD_HIGH;
                 fprintf(stderr, "%s %2d%s", color, val, COLOR_RESET);
             } else if (val < 0) {
                 int id = (-val) - 1;
@@ -76,8 +77,6 @@ void imprimir_tablero(EstadoJuego *estado, int *tablero) {
     fprintf(stderr, "+\n");
 }
 
-
-
 void imprimir_ranking(EstadoJuego *estado) {
     typedef struct {
         int id;
@@ -97,9 +96,12 @@ void imprimir_ranking(EstadoJuego *estado) {
     for (unsigned int i = 0; i < estado->cantidad_jugadores; i++) {
         for (unsigned int j = i + 1; j < estado->cantidad_jugadores; j++) {
             bool menor = false;
-            if (ranking[j].puntaje > ranking[i].puntaje) menor = true;
-            else if (ranking[j].puntaje == ranking[i].puntaje && ranking[j].validos < ranking[i].validos) menor = true;
-            else if (ranking[j].puntaje == ranking[i].puntaje && ranking[j].validos == ranking[i].validos && ranking[j].invalidos < ranking[i].invalidos) menor = true;
+            if (ranking[j].puntaje > ranking[i].puntaje)
+                menor = true;
+            else if (ranking[j].puntaje == ranking[i].puntaje && ranking[j].validos < ranking[i].validos)
+                menor = true;
+            else if (ranking[j].puntaje == ranking[i].puntaje && ranking[j].validos == ranking[i].validos && ranking[j].invalidos < ranking[i].invalidos)
+                menor = true;
 
             if (menor) {
                 Ranking tmp = ranking[i];
@@ -115,9 +117,9 @@ void imprimir_ranking(EstadoJuego *estado) {
         const char *medalla = (i == 0) ? " [Líder]" : "";
 
         fprintf(stderr, "%d\t%-15s Puntaje: %3u | V: %3u | I: %3u%s\n",
-                ranking[i].id,
-                j->nombre[0] ? j->nombre : "(sin nombre)",
-                ranking[i].puntaje, ranking[i].validos, ranking[i].invalidos, medalla);
+            ranking[i].id,
+            j->nombre[0] ? j->nombre : "(sin nombre)",
+            ranking[i].puntaje, ranking[i].validos, ranking[i].invalidos, medalla);
     }
     fprintf(stderr, "============================\n");
 }
@@ -128,12 +130,12 @@ void imprimir_jugadores(EstadoJuego *estado) {
         jugador *j = &estado->jugadores[i];
         const char *color_estado = j->bloqueado ? COLOR_BLOCKED : "";
         fprintf(stderr, "%sJugador %d: %-15s [%s]%s\n", color_estado, i,
-                j->nombre[0] ? j->nombre : "(sin nombre)",
-                j->bloqueado ? "Bloqueado" : "Activo", COLOR_RESET);
+            j->nombre[0] ? j->nombre : "(sin nombre)",
+            j->bloqueado ? "Bloqueado" : "Activo", COLOR_RESET);
         fprintf(stderr, "%s  Posición : (%2hu, %2hu)\n", color_estado, j->x, j->y);
         fprintf(stderr, "%s  Puntaje  : %3u\n", color_estado, j->puntaje);
         fprintf(stderr, "%s  Movs     : Válidos: %3u | Inválidos: %3u%s\n\n",
-                color_estado, j->movs_validos, j->movs_invalidos, COLOR_RESET);
+            color_estado, j->movs_validos, j->movs_invalidos, COLOR_RESET);
     }
     fprintf(stderr, "========================================\n");
 }
@@ -180,13 +182,13 @@ int main(int argc, char *argv[]) {
 
     while (!estado->juego_terminado) {
         sem_wait(&sync->sem_vista);
-    
-        fprintf(stderr, "\033[H\033[J");  // Mover cursor y limpiar pantalla
-        fprintf(stderr, "\033[3J");       // Borrar scrollback (extra)
+
+        fprintf(stderr, "\033[H\033[J"); // Mover cursor y limpiar pantalla
+        fprintf(stderr, "\033[3J"); // Borrar scrollback (extra)
         fflush(stderr);
-    
+
         fprintf(stderr, "======= ChompChamps G15 - Vista del Juego =======\n");
-    
+
         imprimir_tablero(estado, tablero);
         imprimir_jugadores(estado);
         imprimir_ranking(estado);
