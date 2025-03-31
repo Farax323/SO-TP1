@@ -8,6 +8,8 @@
         "mman.h": "c",
         "stdlib.h": "c",
         "time.h": "c",
-        "errno.h": "c"
+        "errno.h": "c",
+        "signal.h": "c",
+        "select.h": "c"
     }
 }
