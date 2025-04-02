@@ -165,6 +165,11 @@ int main(int argc, char *argv[]) {
     int *tablero = (int *)((char *)estado + sizeof(EstadoJuego));
 
     int shm_sync = shm_open(SHM_SYNC, O_CREAT | O_RDWR, 0666);
+    // Cambiar los permisos a rw-rw-rw- (0666)
+    if (fchmod(shm_sync, 0666) == -1) {
+        perror("Error al cambiar permisos de /game_sync");
+        exit(EXIT_FAILURE);
+    }
     ftruncate(shm_sync, sizeof(Sincronizacion));
     Sincronizacion *sync = mmap(NULL, sizeof(Sincronizacion), PROT_READ | PROT_WRITE, MAP_SHARED, shm_sync, 0);
 
