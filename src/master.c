@@ -61,7 +61,7 @@ void colocar_jugadores(EstadoJuego *estado, int *tablero, unsigned int cantidad)
             j->x = ancho - 1;
         if (j->y >= alto)
             j->y = alto - 1;
-        tablero[j->y * ancho + j->x] = -(i + 1);
+        tablero[j->y * ancho + j->x] = i == 0 ? 0 : -(i);
         j->movs_invalidos = 0;
         j->movs_validos = 0;
         j->puntaje = 0;
@@ -88,9 +88,9 @@ bool mover_jugador(EstadoJuego *estado, int *tablero, int id, unsigned char dir)
     if (*celda <= 0)
         return false;
 
-    tablero[j->y * estado->width + j->x] = -(id + 1); // traza cuerpo
+    tablero[j->y * estado->width + j->x] = id == 0 ? 0 : -(id); // traza cuerpo
     j->puntaje += *celda;
-    *celda = -(id + 1);
+    *celda = id == 0 ? 0 : -(id);
     j->x = nx;
     j->y = ny;
     j->movs_validos++;

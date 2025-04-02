@@ -48,8 +48,8 @@ void imprimir_tablero(EstadoJuego *estado, int *tablero) {
                 const char *color = val <= 3 ? COLOR_REWARD_LOW : val <= 6 ? COLOR_REWARD_MEDIUM
                                                                            : COLOR_REWARD_HIGH;
                 fprintf(stderr, "%s %2d%s", color, val, COLOR_RESET);
-            } else if (val < 0) {
-                int id = (-val) - 1;
+            } else if (val <= 0) {
+                int id = val == 0 ? 0 : (-val);
                 if (id >= 0 && id < estado->cantidad_jugadores) {
                     const char *color = (id < cantidad_colores) ? colores[id] : COLOR_RESET;
                     jugador *j = &estado->jugadores[id];
