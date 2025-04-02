@@ -14,20 +14,27 @@
 #include <time.h>
 #include <unistd.h>
 
-#define SHM_STATE "/game_state"
-#define SHM_SYNC "/game_sync"
-
-#define MAX_PIPES 9
-
 int direcciones[8][2] = {{0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}};
 
-int **crear_pipes(int cantidad);
-void cerrar_pipes_excepto(int **pipes, int cantidad, int idx, int extremo);
-void colocar_jugadores(EstadoJuego *estado, int *tablero, unsigned int cantidad);
-void inicializar_tablero(int *tablero, int width, int height, unsigned int seed);
-bool mover_jugador(EstadoJuego *estado, int *tablero, int id, unsigned char dir);
-bool jugador_esta_bloqueado(jugador *j, int *tablero, int width, int height);
-bool todos_bloqueados(EstadoJuego *estado);
+void *crear_shm(char *name, size_t size) {
+    int shm_fd = shm_open(name, O_CREAT | O_RDWR, 0666);
+    if (shm_fd == -1) {
+        perror("Error al crear memoria compartida");
+        exit(EXIT_FAILURE);
+    }
+
+    if (ftruncate(shm_fd, size) == -1) {
+        perror("Error al truncar memoria compartida");
+        exit(EXIT_FAILURE);
+    }
+
+    void *ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (ptr == MAP_FAILED) {
+        perror("Error al mapear memoria compartida");
+        exit(EXIT_FAILURE);
+    }
+    return ptr;
+}
 
 int **crear_pipes(int cantidad) {
     int **pipes = malloc(sizeof(int *) * cantidad);
@@ -47,7 +54,7 @@ void cerrar_pipes_excepto(int **pipes, int cantidad, int idx, int extremo) {
     }
 }
 
-void colocar_jugadores(EstadoJuego *estado, int *tablero, unsigned int cantidad) {
+void colocar_jugadores(EstadoJuego *estado, unsigned int cantidad) {
     int ancho = estado->width;
     int alto = estado->height;
     int margen_x = ancho / (cantidad + 1);
@@ -61,7 +68,7 @@ void colocar_jugadores(EstadoJuego *estado, int *tablero, unsigned int cantidad)
             j->x = ancho - 1;
         if (j->y >= alto)
             j->y = alto - 1;
-        tablero[j->y * ancho + j->x] = i == 0 ? 0 : -(i);
+        estado->tablero[j->y * ancho + j->x] = i == 0 ? 0 : -(i);
         j->movs_invalidos = 0;
         j->movs_validos = 0;
         j->puntaje = 0;
@@ -77,7 +84,10 @@ void inicializar_tablero(int *tablero, int width, int height, unsigned int seed)
     }
 }
 
-bool mover_jugador(EstadoJuego *estado, int *tablero, int id, unsigned char dir) {
+bool mover_jugador(EstadoJuego *estado, int id, unsigned char dir) {
+
+    int *tablero = estado->tablero;
+
     jugador *j = &estado->jugadores[id];
     int nx = j->x + direcciones[dir][0];
     int ny = j->y + direcciones[dir][1];
@@ -118,37 +128,31 @@ bool todos_bloqueados(EstadoJuego *estado) {
     return true;
 }
 
-int main(int argc, char *argv[]) {
-    int width = 10, height = 10, delay = 200, timeout = 10;
-    unsigned int seed = time(NULL);
-    char *view_path = NULL;
-    char *players[MAX_PLAYERS];
-    int cant_players = 0;
-
+void procesar_argumentos(int argc, char *argv[], int *width, int *height, int *delay, int *timeout, unsigned int *seed, char **view_path, char *players[], int *cant_players) {
     int opt;
     while ((opt = getopt(argc, argv, "w:h:d:t:s:v:p:")) != -1) {
         switch (opt) {
         case 'w':
-            width = atoi(optarg);
+            *width = atoi(optarg);
             break;
         case 'h':
-            height = atoi(optarg);
+            *height = atoi(optarg);
             break;
         case 'd':
-            delay = atoi(optarg);
+            *delay = atoi(optarg);
             break;
         case 't':
-            timeout = atoi(optarg);
+            *timeout = atoi(optarg);
             break;
         case 's':
-            seed = atoi(optarg);
+            *seed = atoi(optarg);
             break;
         case 'v':
-            view_path = optarg;
+            *view_path = optarg;
             break;
         case 'p':
-            while (optind <= argc && cant_players < MAX_PLAYERS) {
-                players[cant_players++] = argv[optind - 1];
+            while (optind <= argc && *cant_players < MAX_PLAYERS) {
+                players[(*cant_players)++] = argv[optind - 1];
                 if (optind < argc && argv[optind][0] != '-')
                     optind++;
                 else
@@ -157,40 +161,18 @@ int main(int argc, char *argv[]) {
             break;
         }
     }
+}
 
-    size_t tam_estado = sizeof(EstadoJuego) + width * height * sizeof(int);
-    int shm_fd = shm_open(SHM_STATE, O_CREAT | O_RDWR, 0666);
-    ftruncate(shm_fd, tam_estado);
-    EstadoJuego *estado = mmap(NULL, tam_estado, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    int *tablero = (int *)((char *)estado + sizeof(EstadoJuego));
-
-    int shm_sync = shm_open(SHM_SYNC, O_CREAT | O_RDWR, 0666);
-    // Cambiar los permisos a rw-rw-rw- (0666)
-    if (fchmod(shm_sync, 0666) == -1) {
-        perror("Error al cambiar permisos de /game_sync");
-        exit(EXIT_FAILURE);
+void imprimir_puntajes_finales(EstadoJuego *estado, int cant_players) {
+    printf("\n[MASTER] Juego terminado. Puntajes finales:\n");
+    for (int i = 0; i < cant_players; i++) {
+        jugador *j = &estado->jugadores[i];
+        printf("Jugador %d (%s): %u puntos, %u válidos, %u inválidos\n",
+            i, j->nombre, j->puntaje, j->movs_validos, j->movs_invalidos);
     }
-    ftruncate(shm_sync, sizeof(Sincronizacion));
-    Sincronizacion *sync = mmap(NULL, sizeof(Sincronizacion), PROT_READ | PROT_WRITE, MAP_SHARED, shm_sync, 0);
+}
 
-    sem_init(&sync->sem_vista, 1, 0);
-    sem_init(&sync->sem_master, 1, 0);
-    sem_init(&sync->mutex_estado, 1, 1);
-    sem_init(&sync->mutex_tablero, 1, 1);
-    sem_init(&sync->mutex_lectores, 1, 1);
-    sync->lectores = 0;
-
-    estado->width = width;
-    estado->height = height;
-    estado->cantidad_jugadores = cant_players;
-    estado->juego_terminado = false;
-
-    inicializar_tablero(tablero, width, height, seed);
-    colocar_jugadores(estado, tablero, cant_players);
-
-    int **pipes = crear_pipes(cant_players);
-    pid_t pids[MAX_PLAYERS];
-
+void inicializar_procesos(EstadoJuego *estado, int **pipes, pid_t *pids, int cant_players, char *players[], char *view_path, int width, int height, pid_t *pid_vista) {
     for (int i = 0; i < cant_players; i++) {
         if ((pids[i] = fork()) == 0) {
             dup2(pipes[i][1], STDOUT_FILENO);
@@ -206,9 +188,9 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    pid_t pid_vista = -1;
+    *pid_vista = -1;
     if (view_path) {
-        if ((pid_vista = fork()) == 0) {
+        if ((*pid_vista = fork()) == 0) {
             char w_str[5], h_str[5];
             sprintf(w_str, "%d", width);
             sprintf(h_str, "%d", height);
@@ -217,6 +199,113 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
     }
+}
+
+void inicializar_juego(EstadoJuego **estado,  Sincronizacion **sync,
+    int width, int height, unsigned int seed, int cant_players) {
+
+    size_t tam_estado = sizeof(EstadoJuego) + width * height * sizeof(int);
+    *estado = crear_shm(SHM_STATE, tam_estado);
+    *sync = crear_shm(SHM_SYNC, sizeof(Sincronizacion));
+
+    sem_init(&(*sync)->sem_vista, 1, 0);
+    sem_init(&(*sync)->sem_master, 1, 0);
+    sem_init(&(*sync)->mutex_estado, 1, 1);
+    sem_init(&(*sync)->mutex_tablero, 1, 1);
+    sem_init(&(*sync)->mutex_lectores, 1, 1);
+    (*sync)->lectores = 0;
+
+    (*estado)->width = width;
+    (*estado)->height = height;
+    (*estado)->cantidad_jugadores = cant_players;
+    (*estado)->juego_terminado = false;
+
+    inicializar_tablero((*estado)->tablero, width, height, seed);
+    colocar_jugadores(*estado, cant_players);
+}
+
+void procesar_entrada_jugador(EstadoJuego *estado, int jugador_id, int pipe_fd, Sincronizacion *sync, char *view_path, int delay, time_t *ultimo_mov) {
+    unsigned char dir;
+    int n = read(pipe_fd, &dir, 1);
+
+    if (n <= 0) {
+        estado->jugadores[jugador_id].bloqueado = true;
+        return;
+    }
+    sem_wait(&sync->mutex_tablero);
+    if (dir < 8 && mover_jugador(estado, jugador_id, dir)) {
+        *ultimo_mov = time(NULL);
+    } else {
+        estado->jugadores[jugador_id].movs_invalidos++;
+    }
+    sem_post(&sync->mutex_tablero);
+
+    if (view_path) {
+        sem_post(&sync->sem_vista);
+        sem_wait(&sync->sem_master);
+    }
+
+    usleep(delay * 1000);
+}
+
+void evaluar_bloqueos(EstadoJuego *estado,Sincronizacion *sync) {
+    sem_wait(&sync->mutex_lectores);
+    if(&sync->lectores == 0){
+        sem_wait(&sync->mutex_estado);
+    }
+    sync->lectores++;
+    sem_post(&sync->mutex_lectores);
+
+    for (unsigned int i = 0; i < estado->cantidad_jugadores; i++) {
+        jugador *j = &estado->jugadores[i];
+        if (!j->bloqueado && jugador_esta_bloqueado(j, estado->tablero, estado->width, estado->height)) {
+            j->bloqueado = true;
+            printf("[MASTER] Jugador %d (%s) bloqueado.\n", i, j->nombre);
+        }
+    }
+
+    sem_wait(&sync->mutex_lectores);
+    sync->lectores--;
+    if(sync->lectores == 0){
+        sem_post(&sync->mutex_estado);
+    }
+    sem_post(&sync->mutex_lectores);
+}
+
+bool verificar_condiciones_finalizacion(EstadoJuego *estado, time_t ultimo_mov, int timeout) {
+    if (time(NULL) - ultimo_mov >= timeout) {
+        printf("[MASTER] Timeout alcanzado. Finalizando juego.\n");
+        return true;
+    }
+
+    if (todos_bloqueados(estado)) {
+        printf("[MASTER] Todos los jugadores están bloqueados. Finalizando juego.\n");
+        return true;
+    }
+
+    return false;
+}
+
+int main(int argc, char *argv[]) {
+    int width = 10, height = 10, delay = 200, timeout = 10;
+    unsigned int seed = time(NULL);
+    char *view_path = NULL;
+    char *players[MAX_PLAYERS];
+    int cant_players = 0;
+
+    procesar_argumentos(argc, argv, &width, &height, &delay, &timeout, &seed, &view_path, players, &cant_players);
+
+    EstadoJuego *estado;
+ 
+    Sincronizacion *sync;
+
+    inicializar_juego(&estado,  &sync, width, height, seed, cant_players);
+
+    int **pipes = crear_pipes(cant_players);
+    pid_t pids[MAX_PLAYERS];
+    pid_t pid_vista;
+
+    inicializar_procesos(estado, pipes, pids, cant_players, players, view_path, width, height, &pid_vista);
 
     fd_set set;
     int maxfd = 0;
@@ -239,49 +328,14 @@ int main(int argc, char *argv[]) {
         if (ready > 0) {
             for (int i = 0; i < cant_players; i++) {
                 if (FD_ISSET(pipes[i][0], &set)) {
-                    unsigned char dir;
-                    int n = read(pipes[i][0], &dir, 1);
-
-                    if (n <= 0) {
-                        estado->jugadores[i].bloqueado = true;
-                        continue;
-                    }
-
-                    if (dir < 8 && mover_jugador(estado, tablero, i, dir)) {
-                        ultimo_mov = time(NULL);
-                    } else {
-                        estado->jugadores[i].movs_invalidos++;
-                    }
-
-                    if (view_path) {
-                        sem_post(&sync->sem_vista);
-                        sem_wait(&sync->sem_master);
-                    }
-                    usleep(delay * 1000);
-
-                    if (!estado->jugadores[i].bloqueado &&
-                        jugador_esta_bloqueado(&estado->jugadores[i], tablero, estado->width, estado->height)) {
-                        estado->jugadores[i].bloqueado = true;
-                        printf("[MASTER] Jugador %d (%s) bloqueado.\n", i, estado->jugadores[i].nombre);
-                    }
-                    for (unsigned int i = 0; i < estado->cantidad_jugadores; i++) {
-                        jugador *j = &estado->jugadores[i];
-                        if (!j->bloqueado && jugador_esta_bloqueado(j, tablero, estado->width, estado->height)) {
-                            j->bloqueado = true;
-                            printf("[MASTER] Jugador %d (%s) bloqueado por evaluación periódica.\n", i, j->nombre);
-                        }
-                    }
+                    procesar_entrada_jugador(estado, i, pipes[i][0], sync, view_path, delay, &ultimo_mov);
                 }
             }
         }
 
-        if (time(NULL) - ultimo_mov >= timeout) {
-            printf("[MASTER] Timeout alcanzado. Finalizando juego.\n");
-            break;
-        }
+        evaluar_bloqueos(estado, sync);
 
-        if (todos_bloqueados(estado)) {
-            printf("[MASTER] Todos los jugadores están bloqueados. Finalizando juego.\n");
+        if (verificar_condiciones_finalizacion(estado, ultimo_mov, timeout)) {
             break;
         }
     }
@@ -295,12 +349,7 @@ int main(int argc, char *argv[]) {
     if (pid_vista != -1)
         waitpid(pid_vista, NULL, 0);
 
-    printf("\n[MASTER] Juego terminado. Puntajes finales:\n");
-    for (int i = 0; i < cant_players; i++) {
-        jugador *j = &estado->jugadores[i];
-        printf("Jugador %d (%s): %u puntos, %u válidos, %u inválidos\n",
-            i, j->nombre, j->puntaje, j->movs_validos, j->movs_invalidos);
-    }
+    imprimir_puntajes_finales(estado, cant_players);
 
     return 0;
 }

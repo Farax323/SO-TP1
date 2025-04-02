@@ -10,6 +10,11 @@
         "time.h": "c",
         "errno.h": "c",
         "signal.h": "c",
-        "select.h": "c"
+        "select.h": "c",
+        "unistd.h": "c",
+        "view.h": "c",
+        "player.h": "c",
+        "types.h": "c",
+        "common.h": "c"
     }
 }
