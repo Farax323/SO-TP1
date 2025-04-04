@@ -1,6 +1,6 @@
 #include "../include/view.h"
 
-void imprimir_tablero(EstadoJuego *estado, int *tablero) { // TODO warning: unused parameter 'tablero'
+void imprimir_tablero(EstadoJuego *estado) {
     const char *colores[] = {
         "\033[38;5;160m", // rojo
         "\033[38;5;46m", // verde
@@ -35,14 +35,14 @@ void imprimir_tablero(EstadoJuego *estado, int *tablero) { // TODO warning: unus
                 fprintf(stderr, "%s %2d%s", color, val, COLOR_RESET);
             } else if (val <= 0) {
                 int id = val == 0 ? 0 : (-val);
-                if (id >= 0 && id < estado->cantidad_jugadores) { // TODO warning: comparison of integer expressions of different signedness: 'int' and 'unsigned int'
-                    const char *color = (id < cantidad_colores) ? colores[id] : COLOR_RESET;
+                if (id >= 0 && id < (int)estado->cantidad_jugadores) {
+                    const char *color = (id < (int)cantidad_colores) ? colores[id] : COLOR_RESET;
                     jugador *j = &estado->jugadores[id];
-                    char label[4];
+                    char label[12];
                     if (j->x == x && j->y == y) {
-                        snprintf(label, sizeof(label), "@%d", id); // TODO warning: '%d' directive output may be truncated writing between 1 and 10 bytes into a region of size 3
+                        snprintf(label, sizeof(label), "@%d", id);
                     } else {
-                        snprintf(label, sizeof(label), "P%d", id); // TODO warning: '%d' directive output may be truncated writing between 1 and 10 bytes into a region of size 3
+                        snprintf(label, sizeof(label), "P%d", id);
                     }
                     fprintf(stderr, "%s%3s%s", color, label, COLOR_RESET);
                 } else {
@@ -125,6 +125,13 @@ void imprimir_jugadores(EstadoJuego *estado) {
     fprintf(stderr, "========================================\n");
 }
 
+void dormir_milisegundos(int milisegundos) {
+    struct timespec ts;
+    ts.tv_sec = milisegundos / 1000;
+    ts.tv_nsec = (milisegundos % 1000) * 1000000;
+    nanosleep(&ts, NULL);
+}
+
 EstadoJuego *inicializar_estado(char *path, size_t tam_total) {
     int fd_estado = shm_open(path, O_RDONLY, 0666);
     if (fd_estado == -1) {
@@ -135,36 +142,36 @@ EstadoJuego *inicializar_estado(char *path, size_t tam_total) {
     EstadoJuego *estado = mmap(NULL, tam_total, PROT_READ, MAP_SHARED, fd_estado, 0);
     if (estado == MAP_FAILED) {
         perror("VIEW: Error al mapear /game_state");
-        return EXIT_FAILURE; // TODO warning: returning 'int' from a function with return type 'EstadoJuego *' makes pointer from integer without a cast
+        exit(EXIT_FAILURE);
     }
     return estado;
 }
 
-Sincronizacion *inicializar_sincronizacion(char *path) { // TODO warning: unused parameter 'path'
-    int fd_sync = shm_open("/game_sync", O_RDWR, 0666);
+Sincronizacion *inicializar_sincronizacion(char *path) {
+    int fd_sync = shm_open(path, O_RDWR, 0666);
     if (fd_sync == -1) {
         perror("VIEW: Error al abrir /game_sync");
-        return EXIT_FAILURE; // TODO warning: returning 'int' from a function with return type 'Sincronizacion *' makes pointer from integer without a cast
+        exit(EXIT_FAILURE);
     }
     Sincronizacion *sync = mmap(NULL, sizeof(Sincronizacion), PROT_READ | PROT_WRITE, MAP_SHARED, fd_sync, 0);
     if (sync == MAP_FAILED) {
         perror("VIEW: Error al mapear /game_sync");
-        return EXIT_FAILURE; // TODO warning: returning 'int' from a function with return type 'Sincronizacion *' makes pointer from integer without a cast
+        exit(EXIT_FAILURE);
     }
     return sync;
 }
 
-void procesar_juego(EstadoJuego *estado, Sincronizacion *sync, int width, int height, time_t *start_time, int *frame_count) { // TODO warning: unused parameter 'width' and 'height'
+void procesar_juego(EstadoJuego *estado, Sincronizacion *sync, time_t *start_time, int *frame_count) {
     while (!estado->juego_terminado) {
         sem_wait(&sync->sem_vista);
 
-        fprintf(stderr, "\033[H\033[J"); // Mover cursor y limpiar pantalla
-        fprintf(stderr, "\033[3J"); // Borrar scrollback (extra)
+        fprintf(stderr, "\033[H\033[J");
+        fprintf(stderr, "\033[3J");
         fflush(stderr);
 
         fprintf(stderr, "======= ChompChamps G15 - Vista del Juego =======\n");
 
-        imprimir_tablero(estado, estado->tablero);
+        imprimir_tablero(estado);
         imprimir_jugadores(estado);
         imprimir_ranking(estado);
 
@@ -173,7 +180,7 @@ void procesar_juego(EstadoJuego *estado, Sincronizacion *sync, int width, int he
         fprintf(stderr, "Frames renderizados : %d\n", ++*frame_count);
 
         sem_post(&sync->sem_master);
-        usleep(100000); // TODO warning: implicit declaration of function 'usleep'
+        dormir_milisegundos(100);
     }
 }
 
@@ -192,7 +199,7 @@ int main(int argc, char *argv[]) {
     EstadoJuego *estado = inicializar_estado("/game_state", tam_total);
     Sincronizacion *sync = inicializar_sincronizacion("/game_sync");
 
-    procesar_juego(estado, sync, width, height, &start_time, &frame_count);
+    procesar_juego(estado, sync, &start_time, &frame_count);
 
     fprintf(stderr, "\n[VIEW] Juego terminado.\n");
     fprintf(stderr, "\n======= ESTADÍSTICAS FINALES =======\n");

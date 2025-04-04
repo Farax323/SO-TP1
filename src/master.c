@@ -23,6 +23,13 @@ void *crear_shm(char *name, size_t size) {
         exit(EXIT_FAILURE);
     }
 
+    if (strcmp(name, SHM_SYNC) == 0) {
+        if (fchmod(shm_fd, 0666) == -1) {
+            perror("Error al cambiar permisos de /game_sync");
+            exit(EXIT_FAILURE);
+        }
+    }
+
     if (ftruncate(shm_fd, size) == -1) {
         perror("Error al truncar memoria compartida");
         exit(EXIT_FAILURE);
@@ -98,7 +105,7 @@ bool mover_jugador(EstadoJuego *estado, int id, unsigned char dir) {
     if (*celda <= 0)
         return false;
 
-    tablero[j->y * estado->width + j->x] = id == 0 ? 0 : -(id); // traza cuerpo
+    tablero[j->y * estado->width + j->x] = id == 0 ? 0 : -(id);
     j->puntaje += *celda;
     *celda = id == 0 ? 0 : -(id);
     j->x = nx;
@@ -118,6 +125,13 @@ bool jugador_esta_bloqueado(jugador *j, int *tablero, int width, int height) {
         }
     }
     return true;
+}
+
+void dormir_milisegundos(int milisegundos) {
+    struct timespec ts;
+    ts.tv_sec = milisegundos / 1000;
+    ts.tv_nsec = (milisegundos % 1000) * 1000000;
+    nanosleep(&ts, NULL);
 }
 
 bool todos_bloqueados(EstadoJuego *estado) {
@@ -201,12 +215,14 @@ void inicializar_procesos(EstadoJuego *estado, int **pipes, pid_t *pids, int can
     }
 }
 
-void inicializar_juego(EstadoJuego **estado,  Sincronizacion **sync,
+void inicializar_juego(EstadoJuego **estado, Sincronizacion **sync,
     int width, int height, unsigned int seed, int cant_players) {
 
     size_t tam_estado = sizeof(EstadoJuego) + width * height * sizeof(int);
     *estado = crear_shm(SHM_STATE, tam_estado);
     *sync = crear_shm(SHM_SYNC, sizeof(Sincronizacion));
+
+   
 
     sem_init(&(*sync)->sem_vista, 1, 0);
     sem_init(&(*sync)->sem_master, 1, 0);
@@ -245,12 +261,12 @@ void procesar_entrada_jugador(EstadoJuego *estado, int jugador_id, int pipe_fd, 
         sem_wait(&sync->sem_master);
     }
 
-    usleep(delay * 1000);
+    dormir_milisegundos(delay);
 }
 
-void evaluar_bloqueos(EstadoJuego *estado,Sincronizacion *sync) {
+void evaluar_bloqueos(EstadoJuego *estado, Sincronizacion *sync) {
     sem_wait(&sync->mutex_lectores);
-    if(&sync->lectores == 0){
+    if (sync->lectores == 0) {
         sem_wait(&sync->mutex_estado);
     }
     sync->lectores++;
@@ -266,7 +282,7 @@ void evaluar_bloqueos(EstadoJuego *estado,Sincronizacion *sync) {
 
     sem_wait(&sync->mutex_lectores);
     sync->lectores--;
-    if(sync->lectores == 0){
+    if (sync->lectores == 0) {
         sem_post(&sync->mutex_estado);
     }
     sem_post(&sync->mutex_lectores);
@@ -296,10 +312,10 @@ int main(int argc, char *argv[]) {
     procesar_argumentos(argc, argv, &width, &height, &delay, &timeout, &seed, &view_path, players, &cant_players);
 
     EstadoJuego *estado;
- 
+
     Sincronizacion *sync;
 
-    inicializar_juego(&estado,  &sync, width, height, seed, cant_players);
+    inicializar_juego(&estado, &sync, width, height, seed, cant_players);
 
     int **pipes = crear_pipes(cant_players);
     pid_t pids[MAX_PLAYERS];

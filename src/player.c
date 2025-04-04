@@ -1,6 +1,5 @@
 #include "../include/player.h"
 
-// Make these static so they don't conflict with external symbols
 static int dx[] = {0, 1, 1, 1, 0, -1, -1, -1};
 static int dy[] = {-1, -1, 0, 1, 1, 1, 0, -1};
 
@@ -41,7 +40,7 @@ int jugadores_cerca(int x, int y, EstadoJuego *estado, int mi_id) {
 }
 
 Sincronizacion *inicializar_sincronizacion(char *path) {
-    int fd_sync = shm_open("/game_sync", O_RDWR, 0666);
+    int fd_sync = shm_open(path, O_RDWR, 0666);
     if (fd_sync == -1) {
         perror("PLAYER: Error al abrir /game_sync");
         exit(EXIT_FAILURE);
@@ -60,20 +59,20 @@ EstadoJuego *inicializar_estado(char *path, size_t tam_total, Sincronizacion *sy
         perror("PLAYER: Error al abrir /game_state");
         exit(EXIT_FAILURE);
     }
-    
-    sem_wait(&sync->mutex_lectores); 
+
+    sem_wait(&sync->mutex_lectores);
     sync->lectores++;
     if (sync->lectores == 1) {
-        sem_wait(&sync->mutex_estado); 
+        sem_wait(&sync->mutex_estado);
     }
     sem_post(&sync->mutex_lectores);
-    
+
     EstadoJuego *estado = mmap(NULL, tam_total, PROT_READ, MAP_SHARED, fd_estado, 0);
     if (estado == MAP_FAILED) {
         perror("PLAYER: Error al mapear /game_state");
         sem_wait(&sync->mutex_lectores);
         sync->lectores--;
-        if(sync->lectores == 0){
+        if (sync->lectores == 0) {
             sem_post(&sync->mutex_estado);
         }
         sem_post(&sync->mutex_lectores);
@@ -115,13 +114,11 @@ void calcular_mejor_movimiento(EstadoJuego *estado, jugador *yo, int *mejor_x, i
     }
 }
 
-void procesar_juego(EstadoJuego *estado, jugador *yo) {
-    Sincronizacion *sync = inicializar_sincronizacion("/game_sync");
-    
+void procesar_juego(EstadoJuego *estado, Sincronizacion *sync, jugador *yo) {
+
     while (!estado->juego_terminado && !yo->bloqueado) {
         int mejor_x = -1, mejor_y = -1;
-        
-        // Protect tablero access with mutex to prevent race conditions
+
         sem_wait(&sync->mutex_tablero);
         calcular_mejor_movimiento(estado, yo, &mejor_x, &mejor_y);
         sem_post(&sync->mutex_tablero);
@@ -131,8 +128,7 @@ void procesar_juego(EstadoJuego *estado, jugador *yo) {
             if (dir != -1) {
                 unsigned char direccion = (unsigned char)dir;
                 write(STDOUT_FILENO, &direccion, sizeof(direccion));
-                
-                // Add a longer sleep to avoid sending moves too quickly
+
                 sleep(1);
                 continue;
             }
@@ -152,13 +148,11 @@ int main(int argc, char *argv[]) {
     srand(time(NULL) ^ getpid());
 
     size_t tam_total = sizeof(EstadoJuego) + width * height * sizeof(int);
-    
-    // First initialize synchronization
+
     Sincronizacion *sync = inicializar_sincronizacion("/game_sync");
-    
-    // Then initialize game state
+
     EstadoJuego *estado = inicializar_estado("/game_state", tam_total, sync);
-    
+
     jugador *yo = encontrar_jugador(estado, getpid());
 
     if (!yo) {
@@ -172,15 +166,14 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    procesar_juego(estado, yo);
-    
-    // Clean up semaphores before exiting
+    procesar_juego(estado, sync, yo);
+
     sem_wait(&sync->mutex_lectores);
     sync->lectores--;
     if (sync->lectores == 0) {
         sem_post(&sync->mutex_estado);
     }
     sem_post(&sync->mutex_lectores);
-    
+
     return 0;
 }

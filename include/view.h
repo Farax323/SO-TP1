@@ -18,13 +18,11 @@
 #define COLOR_REWARD_HIGH "\033[38;5;210m"
 #define COLOR_BLOCKED "\033[1;90m"
 
-void imprimir_tablero(EstadoJuego *estado, int *tablero);
+void imprimir_tablero(EstadoJuego *estado);
 void imprimir_ranking(EstadoJuego *estado);
 void imprimir_jugadores(EstadoJuego *estado);
 EstadoJuego *inicializar_estado(char *path, size_t tam_total);
 Sincronizacion *inicializar_sincronizacion(char *path);
-// void inicializar_juego(int argc, char *argv[], int *width, int *height, EstadoJuego **estado, Sincronizacion **sync, int *fd_estado, int *fd_sync);
-void procesar_juego(EstadoJuego *estado, Sincronizacion *sync, int width, int height, time_t *start_time, int *frame_count);
-// void juego(EstadoJuego *estado, Sincronizacion *sync, int *tablero);
+void procesar_juego(EstadoJuego *estado, Sincronizacion *sync, time_t *start_time, int *frame_count);
 
 #endif // VIEW_H
