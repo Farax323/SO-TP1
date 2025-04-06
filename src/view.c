@@ -196,8 +196,8 @@ int main(int argc, char *argv[]) {
     time_t start_time = time(NULL);
     int frame_count = 0;
 
-    EstadoJuego *estado = inicializar_estado("/game_state", tam_total);
-    Sincronizacion *sync = inicializar_sincronizacion("/game_sync");
+    EstadoJuego *estado = inicializar_estado(SHM_STATE, tam_total);
+    Sincronizacion *sync = inicializar_sincronizacion(SHM_SYNC);
 
     procesar_juego(estado, sync, &start_time, &frame_count);
 

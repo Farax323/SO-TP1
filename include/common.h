@@ -4,6 +4,8 @@
 #include <semaphore.h>
 #include <stdbool.h>
 
+#define SHM_STATE "/game_state"
+#define SHM_SYNC "/game_sync"
 #define MAX_PLAYERS 9
 #define BOARD_WIDTH 10
 #define BOARD_HEIGHT 10

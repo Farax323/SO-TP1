@@ -5,8 +5,6 @@
 #include <semaphore.h>
 #include <stdbool.h>
 
-#define SHM_STATE "/game_state"
-#define SHM_SYNC "/game_sync"
 #define MAX_PIPES 9
 
 int **crear_pipes(int cantidad);
