@@ -15,6 +15,7 @@
         "view.h": "c",
         "player.h": "c",
         "types.h": "c",
-        "common.h": "c"
+        "common.h": "c",
+        "string.h": "c"
     }
 }

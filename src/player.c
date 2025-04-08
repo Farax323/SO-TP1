@@ -39,37 +39,6 @@ int jugadores_cerca(int x, int y, EstadoJuego *estado, int mi_id) {
 	return count;
 }
 
-EstadoJuego *inicializar_estado(char *path, size_t tam_total, int *fd_estado) {
-	*fd_estado = shm_open(path, O_RDONLY, 0666);
-	if (*fd_estado == -1) {
-		perror("PLAYER: Error al abrir /game_state");
-		exit(EXIT_FAILURE);
-	}
-
-	EstadoJuego *estado = mmap(NULL, tam_total, PROT_READ, MAP_SHARED, *fd_estado, 0);
-	if (estado == MAP_FAILED) {
-		perror("PLAYER: Error al mapear /game_state");
-		close(*fd_estado);
-		exit(EXIT_FAILURE);
-	}
-	return estado;
-}
-
-Sincronizacion *inicializar_sincronizacion(char *path, int *fd_sync) {
-	*fd_sync = shm_open(path, O_RDWR, 0666);
-	if (*fd_sync == -1) {
-		perror("PLAYER: Error al abrir /game_sync");
-		exit(EXIT_FAILURE);
-	}
-	Sincronizacion *sync = mmap(NULL, sizeof(Sincronizacion), PROT_READ | PROT_WRITE, MAP_SHARED, *fd_sync, 0);
-	if (sync == MAP_FAILED) {
-		perror("PLAYER: Error al mapear /game_sync");
-		close(*fd_sync);
-		exit(EXIT_FAILURE);
-	}
-	return sync;
-}
-
 void calcular_mejor_movimiento(EstadoJuego *estado, jugador *yo, int *mejor_x, int *mejor_y) {
 	float mejor_score = -1.0f;
 	for (int y = 0; y < estado->height; y++) {
@@ -109,10 +78,8 @@ void procesar_juego(EstadoJuego *estado, Sincronizacion *sync, jugador *yo, int 
 		sem_post(&sync->mutex_tablero);
 		sleep(1);
 	}
-	munmap(estado, sizeof(EstadoJuego) + estado->width * estado->height * sizeof(int));
-	close(fd_estado);
-	munmap(sync, sizeof(Sincronizacion));
-	close(fd_sync);
+	shm_disconnect(estado, sizeof(EstadoJuego) + estado->width * estado->height * sizeof(int), fd_estado);
+	shm_disconnect(sync, sizeof(Sincronizacion), fd_sync);
 }
 
 int main(int argc, char *argv[]) {
@@ -125,8 +92,9 @@ int main(int argc, char *argv[]) {
 	size_t tam_total = sizeof(EstadoJuego) + width * height * sizeof(int);
 	int fd_estado, fd_sync;
 
-	Sincronizacion *sync = inicializar_sincronizacion(SHM_SYNC, &fd_sync);
-	EstadoJuego *estado = inicializar_estado(SHM_STATE, tam_total, &fd_estado);
+	EstadoJuego *estado = shm_open_custom(SHM_STATE, O_RDONLY, 0666, tam_total, PROT_READ, &fd_estado);
+	Sincronizacion *sync =
+		shm_open_custom(SHM_SYNC, O_RDWR, 0666, sizeof(Sincronizacion), PROT_READ | PROT_WRITE, &fd_sync);
 
 	jugador *yo = NULL;
 	for (unsigned int i = 0; i < estado->cantidad_jugadores; i++) {
@@ -136,10 +104,8 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	if (!yo) {
-		munmap(estado, tam_total);
-		close(fd_estado);
-		munmap(sync, sizeof(Sincronizacion));
-		close(fd_sync);
+		shm_disconnect(estado, tam_total, fd_estado);
+		shm_disconnect(sync, sizeof(Sincronizacion), fd_sync);
 		exit(EXIT_FAILURE);
 	}
 

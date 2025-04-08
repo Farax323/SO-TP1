@@ -3,6 +3,7 @@
 
 #include <semaphore.h>
 #include <stdbool.h>
+#include "shm.h"
 
 #define SHM_STATE "/game_state"
 #define SHM_SYNC "/game_sync"

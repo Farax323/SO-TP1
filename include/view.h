@@ -21,8 +21,6 @@
 void imprimir_tablero(EstadoJuego *estado);
 void imprimir_ranking(EstadoJuego *estado);
 void imprimir_jugadores(EstadoJuego *estado);
-EstadoJuego *inicializar_estado(char *path, size_t tam_total);
-Sincronizacion *inicializar_sincronizacion(char *path);
 void procesar_juego(EstadoJuego *estado, Sincronizacion *sync, time_t *start_time, int *frame_count);
 
 #endif // VIEW_H

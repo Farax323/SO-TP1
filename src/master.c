@@ -16,33 +16,6 @@
 
 int direcciones[8][2] = {{0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}};
 
-void *crear_shm(char *name, size_t size, int *shm_fd) {
-	*shm_fd = shm_open(name, O_CREAT | O_RDWR, 0666);
-	if (*shm_fd == -1) {
-		perror("Error al crear memoria compartida");
-		exit(EXIT_FAILURE);
-	}
-
-	if (strcmp(name, SHM_SYNC) == 0) {
-		if (fchmod(*shm_fd, 0666) == -1) {
-			perror("Error al cambiar permisos de /game_sync");
-			exit(EXIT_FAILURE);
-		}
-	}
-
-	if (ftruncate(*shm_fd, size) == -1) {
-		perror("Error al truncar memoria compartida");
-		exit(EXIT_FAILURE);
-	}
-
-	void *ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, *shm_fd, 0);
-	if (ptr == MAP_FAILED) {
-		perror("Error al mapear memoria compartida");
-		exit(EXIT_FAILURE);
-	}
-	return ptr;
-}
-
 int **crear_pipes(int cantidad) {
 	int **pipes = malloc(sizeof(int *) * cantidad);
 	for (int i = 0; i < cantidad; i++) {
@@ -220,8 +193,9 @@ void inicializar_procesos(EstadoJuego *estado, int **pipes, pid_t *pids, int can
 void inicializar_juego(EstadoJuego **estado, Sincronizacion **sync, int width, int height, unsigned int seed,
 					   int cant_players, int *shm_fd_estado, int *shm_fd_sync) {
 	size_t tam_estado = sizeof(EstadoJuego) + width * height * sizeof(int);
-	*estado = crear_shm(SHM_STATE, tam_estado, shm_fd_estado);
-	*sync = crear_shm(SHM_SYNC, sizeof(Sincronizacion), shm_fd_sync);
+	*estado = shm_open_custom(SHM_STATE, O_RDWR | O_CREAT, 0644, tam_estado, PROT_READ | PROT_WRITE, shm_fd_estado);
+	*sync =
+		shm_open_custom(SHM_SYNC, O_RDWR | O_CREAT, 0666, sizeof(Sincronizacion), PROT_READ | PROT_WRITE, shm_fd_sync);
 
 	sem_init(&(*sync)->sem_vista, 1, 0);
 	sem_init(&(*sync)->sem_master, 1, 0);
@@ -313,7 +287,6 @@ int main(int argc, char *argv[]) {
 	procesar_argumentos(argc, argv, &width, &height, &delay, &timeout, &seed, &view_path, players, &cant_players);
 
 	EstadoJuego *estado;
-
 	Sincronizacion *sync;
 
 	inicializar_juego(&estado, &sync, width, height, seed, cant_players, &shm_fd_estado, &shm_fd_sync);
@@ -332,7 +305,6 @@ int main(int argc, char *argv[]) {
 	}
 
 	time_t ultimo_mov = time(NULL);
-
 	while (true) {
 		FD_ZERO(&set);
 		for (int i = 0; i < cant_players; i++) {
@@ -375,13 +347,10 @@ int main(int argc, char *argv[]) {
 
 	imprimir_puntajes_finales(estado, cant_players);
 
-	munmap(estado, sizeof(EstadoJuego) + width * height * sizeof(int));
-	close(shm_fd_estado);
-	shm_unlink(SHM_STATE);
-
-	munmap(sync, sizeof(Sincronizacion));
-	close(shm_fd_sync);
-	shm_unlink(SHM_SYNC);
+	shm_disconnect(estado, sizeof(EstadoJuego) + width * height * sizeof(int), shm_fd_estado);
+	shm_remove(SHM_STATE);
+	shm_disconnect(sync, sizeof(Sincronizacion), shm_fd_sync);
+	shm_remove(SHM_SYNC);
 
 	return 0;
 }

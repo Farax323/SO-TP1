@@ -134,35 +134,6 @@ void dormir_milisegundos(int milisegundos) {
 	nanosleep(&ts, NULL);
 }
 
-EstadoJuego *inicializar_estado(char *path, size_t tam_total) {
-	int fd_estado = shm_open(path, O_RDONLY, 0666);
-	if (fd_estado == -1) {
-		perror("Error al abrir /game_state");
-		exit(EXIT_FAILURE);
-	}
-
-	EstadoJuego *estado = mmap(NULL, tam_total, PROT_READ, MAP_SHARED, fd_estado, 0);
-	if (estado == MAP_FAILED) {
-		perror("VIEW: Error al mapear /game_state");
-		exit(EXIT_FAILURE);
-	}
-	return estado;
-}
-
-Sincronizacion *inicializar_sincronizacion(char *path) {
-	int fd_sync = shm_open(path, O_RDWR, 0666);
-	if (fd_sync == -1) {
-		perror("VIEW: Error al abrir /game_sync");
-		exit(EXIT_FAILURE);
-	}
-	Sincronizacion *sync = mmap(NULL, sizeof(Sincronizacion), PROT_READ | PROT_WRITE, MAP_SHARED, fd_sync, 0);
-	if (sync == MAP_FAILED) {
-		perror("VIEW: Error al mapear /game_sync");
-		exit(EXIT_FAILURE);
-	}
-	return sync;
-}
-
 void procesar_juego(EstadoJuego *estado, Sincronizacion *sync, time_t *start_time, int *frame_count) {
 	while (!estado->juego_terminado) {
 		sem_wait(&sync->sem_vista);
@@ -197,9 +168,11 @@ int main(int argc, char *argv[]) {
 	size_t tam_total = sizeof(EstadoJuego) + width * height * sizeof(int);
 	time_t start_time = time(NULL);
 	int frame_count = 0;
+	int fd_estado, fd_sync;
 
-	EstadoJuego *estado = inicializar_estado(SHM_STATE, tam_total);
-	Sincronizacion *sync = inicializar_sincronizacion(SHM_SYNC);
+	EstadoJuego *estado = shm_open_custom(SHM_STATE, O_RDONLY, 0666, tam_total, PROT_READ, &fd_estado);
+	Sincronizacion *sync =
+		shm_open_custom(SHM_SYNC, O_RDWR, 0666, sizeof(Sincronizacion), PROT_READ | PROT_WRITE, &fd_sync);
 
 	procesar_juego(estado, sync, &start_time, &frame_count);
 
@@ -209,5 +182,8 @@ int main(int argc, char *argv[]) {
 	fprintf(stderr, "Duración total       : %ld segundos\n", time(NULL) - start_time);
 	fprintf(stderr, "Frames totales       : %d\n", frame_count);
 	fprintf(stderr, "====================================\n");
+
+	shm_disconnect(estado, tam_total, fd_estado);
+	shm_disconnect(sync, sizeof(Sincronizacion), fd_sync);
 	return 0;
 }
