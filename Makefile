@@ -27,10 +27,6 @@ clean:
 format:
 	clang-format -style=file --sort-includes --Werror -i $(SRC_DIR)/*.c $(INCLUDE_DIR)/*.h
 
-# Run target
-run: all
-	$(BIN_DIR)/master
-
 # Help target
 help:
 	@echo "Available targets:"
