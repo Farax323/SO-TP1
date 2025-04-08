@@ -18,4 +18,7 @@ bin/view: src/view.c
 clean:
 	rm -f $(BIN)
 
-.PHONY: all clean
+format:
+	clang-format -style=file --sort-includes --Werror -i ./src/*.c ./include/*.h
+
+.PHONY: all clean format
