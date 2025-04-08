@@ -1,24 +1,44 @@
+# Compiler and flags
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 -pthread
 LDFLAGS = -lrt -lm
-SRC = src/master.c src/player.c src/view.c
-BIN = bin/master bin/player bin/view
 
+# Directories
+SRC_DIR = src
+INCLUDE_DIR = include
+BIN_DIR = bin
+
+# Source files and binaries
+SRC = $(wildcard $(SRC_DIR)/*.c)
+BIN = $(BIN_DIR)/master $(BIN_DIR)/player $(BIN_DIR)/view
+
+# Default target
 all: $(BIN)
 
-bin/master: src/master.c
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+# Pattern rule for building binaries
+$(BIN_DIR)/%: $(SRC_DIR)/%.c
+	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -o $@ $< $(LDFLAGS)
 
-bin/player: src/player.c
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
-
-bin/view: src/view.c
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
-
+# Clean target
 clean:
 	rm -f $(BIN)
 
+# Format target
 format:
-	clang-format -style=file --sort-includes --Werror -i ./src/*.c ./include/*.h
+	clang-format -style=file --sort-includes --Werror -i $(SRC_DIR)/*.c $(INCLUDE_DIR)/*.h
 
-.PHONY: all clean format
+# Run target
+run: all
+	$(BIN_DIR)/master
+
+# Help target
+help:
+	@echo "Available targets:"
+	@echo "  all     - Build all binaries"
+	@echo "  clean   - Remove all binaries"
+	@echo "  format  - Format source code"
+	@echo "  run     - Build and run the master binary"
+	@echo "  help    - Display this help message"
+
+# Phony targets
+.PHONY: all clean format run help
