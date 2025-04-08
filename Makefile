@@ -33,8 +33,7 @@ help:
 	@echo "  all     - Build all binaries"
 	@echo "  clean   - Remove all binaries"
 	@echo "  format  - Format source code"
-	@echo "  run     - Build and run the master binary"
 	@echo "  help    - Display this help message"
 
 # Phony targets
-.PHONY: all clean format run help
+.PHONY: all clean format help
