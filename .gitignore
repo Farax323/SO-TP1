@@ -17,5 +17,9 @@ bin/*
 .DS_Store
 Thumbs.db
 
+# Ignorar archivos de configuración de IDE
+.idea/*
+.vscode/*
+
 # Ignorar binarios del proyecto
 ChompChamps*
