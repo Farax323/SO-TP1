@@ -60,6 +60,13 @@ void calcular_mejor_movimiento(EstadoJuego *estado, jugador *yo, int *mejor_x, i
 	}
 }
 
+void dormir_milisegundos(int milisegundos) {
+	struct timespec ts;
+	ts.tv_sec = milisegundos / 1000;
+	ts.tv_nsec = (milisegundos % 1000) * 1000000;
+	nanosleep(&ts, NULL);
+}
+
 void procesar_juego(EstadoJuego *estado, Sincronizacion *sync, jugador *yo, int fd_estado, int fd_sync) {
 	while (!estado->juego_terminado && !yo->bloqueado) {
 		sem_wait(&sync->mutex_tablero);
@@ -71,12 +78,12 @@ void procesar_juego(EstadoJuego *estado, Sincronizacion *sync, jugador *yo, int 
 				unsigned char direccion = (unsigned char) dir;
 				write(STDOUT_FILENO, &direccion, sizeof(direccion));
 				sem_post(&sync->mutex_tablero);
-				usleep(200000);
+				dormir_milisegundos(800);
 				continue;
 			}
 		}
 		sem_post(&sync->mutex_tablero);
-		usleep(200000);
+		dormir_milisegundos(800);
 	}
 	shm_disconnect(estado, sizeof(EstadoJuego) + estado->width * estado->height * sizeof(int), fd_estado);
 	shm_disconnect(sync, sizeof(Sincronizacion), fd_sync);
