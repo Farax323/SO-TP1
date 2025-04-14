@@ -71,12 +71,12 @@ void procesar_juego(EstadoJuego *estado, Sincronizacion *sync, jugador *yo, int 
 				unsigned char direccion = (unsigned char) dir;
 				write(STDOUT_FILENO, &direccion, sizeof(direccion));
 				sem_post(&sync->mutex_tablero);
-				sleep(1);
+				usleep(200000);
 				continue;
 			}
 		}
 		sem_post(&sync->mutex_tablero);
-		sleep(1);
+		usleep(200000);
 	}
 	shm_disconnect(estado, sizeof(EstadoJuego) + estado->width * estado->height * sizeof(int), fd_estado);
 	shm_disconnect(sync, sizeof(Sincronizacion), fd_sync);
