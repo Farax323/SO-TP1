@@ -25,14 +25,6 @@ int **crear_pipes(int cantidad) {
 	return pipes;
 }
 
-void cerrar_pipes_excepto(int **pipes, int cantidad, int idx, int extremo) {
-	for (int i = 0; i < cantidad; i++) {
-		if (i != idx || extremo == 1)
-			close(pipes[i][0]);
-		if (i != idx || extremo == 0)
-			close(pipes[i][1]);
-	}
-}
 
 void colocar_jugadores(EstadoJuego *estado, unsigned int cantidad) {
 	int ancho = estado->width;
@@ -159,11 +151,22 @@ void imprimir_puntajes_finales(EstadoJuego *estado, int cant_players) {
 	}
 }
 
+
+void cerrar_pipes_excepto(int **pipes, int cantidad, int idx, int extremo) {
+	for (int i = 0; i < cantidad; i++) {
+		if (i != idx || extremo == 1)
+			close(pipes[i][0]);
+		if (i != idx || extremo == 0)
+			close(pipes[i][1]);
+	}
+}
+
 void inicializar_procesos(EstadoJuego *estado, int **pipes, pid_t *pids, int cant_players, char *players[],
 						  char *view_path, int width, int height, pid_t *pid_vista) {
 	for (int i = 0; i < cant_players; i++) {
 		if ((pids[i] = fork()) == 0) {
 			dup2(pipes[i][1], STDOUT_FILENO);
+			close(pipes[i][1]);
 			cerrar_pipes_excepto(pipes, cant_players, i, 1);
 			char w_str[5], h_str[5];
 			sprintf(w_str, "%d", width);
@@ -174,12 +177,17 @@ void inicializar_procesos(EstadoJuego *estado, int **pipes, pid_t *pids, int can
 		}
 		else {
 			estado->jugadores[i].pid = pids[i];
+			close(pipes[i][1]);
 		}
 	}
 
 	*pid_vista = -1;
 	if (view_path) {
 		if ((*pid_vista = fork()) == 0) {
+			for(int i =0; i<cant_players; i++){
+				close(pipes[i][0]);
+				close(pipes[i][1]);
+			}
 			char w_str[5], h_str[5];
 			sprintf(w_str, "%d", width);
 			sprintf(h_str, "%d", height);

@@ -16,6 +16,7 @@
         "player.h": "c",
         "types.h": "c",
         "common.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "stat.h": "c"
     }
 }
