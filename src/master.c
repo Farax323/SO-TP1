@@ -219,8 +219,7 @@ void inicializar_juego(EstadoJuego **estado, Sincronizacion **sync, int width, i
 	colocar_jugadores(*estado, cant_players);
 }
 
-void procesar_entrada_jugador(EstadoJuego *estado, int jugador_id, int pipe_fd, Sincronizacion *sync, char *view_path,
-							  int delay, time_t *ultimo_mov) {
+void procesar_entrada_jugador(EstadoJuego *estado, int jugador_id, int pipe_fd, time_t *ultimo_mov) {
 	unsigned char dir;
 	int n = read(pipe_fd, &dir, 1);
 
@@ -237,27 +236,13 @@ void procesar_entrada_jugador(EstadoJuego *estado, int jugador_id, int pipe_fd, 
 	}
 }
 
-void evaluar_bloqueos(EstadoJuego *estado, Sincronizacion *sync) {
-	// sem_wait(&sync->mutex_lectores);
-	// if (sync->lectores == 0) {
-	// 	sem_wait(&sync->mutex_estado);
-	// }
-	// sync->lectores++;
-	// sem_post(&sync->mutex_lectores);
-
+void evaluar_bloqueos(EstadoJuego *estado) {
 	for (unsigned int i = 0; i < estado->cantidad_jugadores; i++) {
 		jugador *j = &estado->jugadores[i];
 		if (!j->bloqueado && jugador_esta_bloqueado(j, estado->tablero, estado->width, estado->height)) {
 			j->bloqueado = true;
 		}
 	}
-
-	// sem_wait(&sync->mutex_lectores);
-	// sync->lectores--;
-	// if (sync->lectores == 0) {
-	// 	sem_post(&sync->mutex_estado);
-	// }
-	// sem_post(&sync->mutex_lectores);
 }
 
 bool verificar_condiciones_finalizacion(EstadoJuego *estado, time_t ultimo_mov, int timeout) {
@@ -318,12 +303,12 @@ int main(int argc, char *argv[]) {
 		if (ready > 0) {
 			for (int i = 0; i < cant_players; i++) {
 				if (FD_ISSET(pipes[i][0], &set)) {
-					procesar_entrada_jugador(estado, i, pipes[i][0], sync, view_path, delay, &ultimo_mov);
+					procesar_entrada_jugador(estado, i, pipes[i][0], &ultimo_mov);
 				}
 			}
 		}
 
-		evaluar_bloqueos(estado, sync);
+		evaluar_bloqueos(estado);
 
 		if (verificar_condiciones_finalizacion(estado, ultimo_mov, timeout)) {
 			break;

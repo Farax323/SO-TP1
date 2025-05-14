@@ -67,32 +67,23 @@ void dormir_milisegundos(int milisegundos) {
 	nanosleep(&ts, NULL);
 }
 
-#include "../include/player.h"
-#include <semaphore.h>
-#include <unistd.h>
-
 void procesar_juego(EstadoJuego *estado, Sincronizacion *sync, jugador *yo, int fd_estado, int fd_sync) {
 	int last_x = -1, last_y = -1;
 	int cur_x, cur_y;
 
 	while (!estado->juego_terminado && !yo->bloqueado) {
-		// 1) Evitar inanición del máster
 		sem_wait(&sync->mutex_estado);
 		sem_post(&sync->mutex_estado);
 
-		// 2) Espera activa: recalcula la “mejor jugada” hasta que cambie
 		do {
-			// — entrada sección lectora —
 			sem_wait(&sync->mutex_lectores);
 			if (sync->lectores++ == 0) {
 				sem_wait(&sync->mutex_tablero);
 			}
 			sem_post(&sync->mutex_lectores);
 
-			// — “leer” estado: calcular movimiento provisional —
 			calcular_mejor_movimiento(estado, yo, &cur_x, &cur_y);
 
-			// — salida sección lectora —
 			sem_wait(&sync->mutex_lectores);
 			if (sync->lectores-- == 1) {
 				sem_post(&sync->mutex_tablero);
@@ -101,19 +92,15 @@ void procesar_juego(EstadoJuego *estado, Sincronizacion *sync, jugador *yo, int 
 
 		} while (cur_x == last_x && cur_y == last_y && !estado->juego_terminado && !yo->bloqueado);
 
-		// Actualizo mi marca para la próxima espera
 		last_x = cur_x;
 		last_y = cur_y;
 
-		// 3) Ya cambió la mejor jugada → la envío
 		if (cur_x != -1 && cur_y != -1) {
 			unsigned char dir = (unsigned char) direccion_hacia(yo->x, yo->y, cur_x, cur_y);
 			write(STDOUT_FILENO, &dir, sizeof(dir));
 		}
-		// ¡Aquí NO hay sleeps! El bucle anterior regula el ritmo.
 	}
 
-	// Desconectar memoria compartida al terminar
 	shm_disconnect(estado, sizeof(EstadoJuego) + estado->width * estado->height * sizeof(int), fd_estado);
 	shm_disconnect(sync, sizeof(*sync), fd_sync);
 }
