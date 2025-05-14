@@ -25,7 +25,6 @@ int **crear_pipes(int cantidad) {
 	return pipes;
 }
 
-
 void colocar_jugadores(EstadoJuego *estado, unsigned int cantidad) {
 	int ancho = estado->width;
 	int alto = estado->height;
@@ -151,7 +150,6 @@ void imprimir_puntajes_finales(EstadoJuego *estado, int cant_players) {
 	}
 }
 
-
 void cerrar_pipes_excepto(int **pipes, int cantidad, int idx, int extremo) {
 	for (int i = 0; i < cantidad; i++) {
 		if (i != idx || extremo == 1)
@@ -184,7 +182,7 @@ void inicializar_procesos(EstadoJuego *estado, int **pipes, pid_t *pids, int can
 	*pid_vista = -1;
 	if (view_path) {
 		if ((*pid_vista = fork()) == 0) {
-			for(int i =0; i<cant_players; i++){
+			for (int i = 0; i < cant_players; i++) {
 				close(pipes[i][0]);
 				close(pipes[i][1]);
 			}
@@ -230,30 +228,22 @@ void procesar_entrada_jugador(EstadoJuego *estado, int jugador_id, int pipe_fd, 
 		estado->jugadores[jugador_id].bloqueado = true;
 		return;
 	}
-	sem_wait(&sync->mutex_tablero);
+
 	if (dir < 8 && mover_jugador(estado, jugador_id, dir)) {
 		*ultimo_mov = time(NULL);
 	}
 	else {
 		estado->jugadores[jugador_id].movs_invalidos++;
 	}
-	sem_post(&sync->mutex_tablero);
-
-	if (view_path) {
-		sem_post(&sync->sem_vista);
-		sem_wait(&sync->sem_master);
-	}
-
-	dormir_milisegundos(delay);
 }
 
 void evaluar_bloqueos(EstadoJuego *estado, Sincronizacion *sync) {
-	sem_wait(&sync->mutex_lectores);
-	if (sync->lectores == 0) {
-		sem_wait(&sync->mutex_estado);
-	}
-	sync->lectores++;
-	sem_post(&sync->mutex_lectores);
+	// sem_wait(&sync->mutex_lectores);
+	// if (sync->lectores == 0) {
+	// 	sem_wait(&sync->mutex_estado);
+	// }
+	// sync->lectores++;
+	// sem_post(&sync->mutex_lectores);
 
 	for (unsigned int i = 0; i < estado->cantidad_jugadores; i++) {
 		jugador *j = &estado->jugadores[i];
@@ -262,12 +252,12 @@ void evaluar_bloqueos(EstadoJuego *estado, Sincronizacion *sync) {
 		}
 	}
 
-	sem_wait(&sync->mutex_lectores);
-	sync->lectores--;
-	if (sync->lectores == 0) {
-		sem_post(&sync->mutex_estado);
-	}
-	sem_post(&sync->mutex_lectores);
+	// sem_wait(&sync->mutex_lectores);
+	// sync->lectores--;
+	// if (sync->lectores == 0) {
+	// 	sem_post(&sync->mutex_estado);
+	// }
+	// sem_post(&sync->mutex_lectores);
 }
 
 bool verificar_condiciones_finalizacion(EstadoJuego *estado, time_t ultimo_mov, int timeout) {
@@ -314,6 +304,9 @@ int main(int argc, char *argv[]) {
 
 	time_t ultimo_mov = time(NULL);
 	while (true) {
+		sem_wait(&sync->mutex_estado);
+		sem_wait(&sync->mutex_tablero);
+		sem_post(&sync->mutex_estado);
 		FD_ZERO(&set);
 		for (int i = 0; i < cant_players; i++) {
 			FD_SET(pipes[i][0], &set);
@@ -335,11 +328,23 @@ int main(int argc, char *argv[]) {
 		if (verificar_condiciones_finalizacion(estado, ultimo_mov, timeout)) {
 			break;
 		}
+
+		sem_post(&sync->mutex_tablero);
+
+		if (view_path) {
+			sem_post(&sync->sem_vista);
+		}
+
+		dormir_milisegundos(delay);
 	}
 
 	estado->juego_terminado = true;
-	if (view_path)
+
+	if (view_path) {
 		sem_post(&sync->sem_vista);
+	}
+
+	imprimir_puntajes_finales(estado, cant_players);
 
 	for (int i = 0; i < cant_players; i++)
 		waitpid(pids[i], NULL, 0);
@@ -352,8 +357,6 @@ int main(int argc, char *argv[]) {
 		free(pipes[i]);
 	}
 	free(pipes);
-
-	imprimir_puntajes_finales(estado, cant_players);
 
 	shm_disconnect(estado, sizeof(EstadoJuego) + width * height * sizeof(int), shm_fd_estado);
 	shm_remove(SHM_STATE);
